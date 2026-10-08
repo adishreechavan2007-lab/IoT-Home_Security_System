@@ -3,7 +3,7 @@
 #include <DHT.h>
 
 // ====== CHANGE THIS to a unique ID, same one goes in the dashboard Settings ======
-#define DEVICE_ID "homesec-demo-x7k2"
+#define DEVICE_ID "homesec-adi-4821"
 
 #define PIR_PIN 27
 #define DOOR_PIN 26   // button pressed = door OPEN
