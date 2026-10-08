@@ -48,7 +48,14 @@ Sensors → ESP32 (Wokwi) → MQTT broker (HiveMQ) → Web dashboard
 > No hardware? Tick **Demo mode** in Settings to see the dashboard with fake data.
 
 ## 📸 Screenshots
-_Add dashboard and Wokwi screenshots here._
+### Dashboard
+![Dashboard safe](dashboard-safe.png)
+![Dashboard alarm](dashboard-alarm.png)
+
+### Wokwi Circuit
+![Wokwi circuit](wokwi-circuit.png)
+
+**Live simulation:** [Open in wokwi](https://wokwi.com/projects/477334440456700929)
 
 ## ⚠️ Note
 The public MQTT broker has no authentication, so this is for learning and demos only.
