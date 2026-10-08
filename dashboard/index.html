@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HomeSec – IoT Home Security</title>
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--tx:#e2e8f0;--mut:#94a3b8;--ok:#22c55e;--bad:#ef4444;--acc:#38bdf8}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--tx);display:flex;min-height:100vh}
+nav{width:200px;background:#0b1220;padding:16px;display:flex;flex-direction:column;gap:6px}
+nav h2{margin:0 0 12px;color:var(--acc)}nav a{color:var(--mut);text-decoration:none;padding:10px;border-radius:8px}
+nav a.on,nav a:hover{background:var(--card);color:var(--tx)}
+main{flex:1;padding:20px;max-width:900px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.card{background:var(--card);border-radius:12px;padding:16px}.card small{color:var(--mut)}
+.big{font-size:28px;font-weight:700;margin-top:6px}.ok{color:var(--ok)}.bad{color:var(--bad)}
+button{background:var(--acc);color:#001;border:0;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;margin:4px 4px 4px 0}
+button.red{background:var(--bad);color:#fff}button.gray{background:#475569;color:#fff}
+input{background:#0f172a;color:var(--tx);border:1px solid #334155;padding:8px;border-radius:8px;width:100%;margin:6px 0 12px}
+table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #334155;text-align:left;font-size:14px}
+.banner{padding:14px;border-radius:12px;margin-bottom:14px;font-weight:700;background:#14532d}.banner.alarm{background:#7f1d1d;animation:b 1s infinite}
+@keyframes b{50%{opacity:.6}}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--bad);margin-right:6px}.dot.on{background:var(--ok)}
+canvas{width:100%;height:160px;background:#0f172a;border-radius:8px}
+@media(max-width:640px){body{flex-direction:column}nav{width:auto;flex-direction:row;overflow:auto}nav h2{display:none}}
+</style></head><body>
+<nav><h2>🛡 HomeSec</h2>
+<a href="#dash">Dashboard</a><a href="#sensors">Sensors</a><a href="#logs">Event Log</a><a href="#settings">Settings</a><a href="#about">About</a>
+<div style="margin-top:auto;font-size:12px;color:var(--mut)"><span id="dot" class="dot"></span><span id="conn">offline</span></div></nav>
+<main id="view"></main>
+<script>
+const $=s=>document.querySelector(s);
+const cfg=JSON.parse(localStorage.hs_cfg||'{"id":"homesec-demo-x7k2","demo":false}');
+let S={armed:false,alarm:false,motion:false,door:false,temp:0,hum:0},hist=[],logs=JSON.parse(localStorage.hs_logs||'[]'),client=null,prev={};
+function log(m){logs.unshift({t:new Date().toLocaleString(),m});logs=logs.slice(0,100);localStorage.hs_logs=JSON.stringify(logs);if(page()=='logs')render()}
+function setConn(on,txt){$('#dot').className='dot'+(on?' on':'');$('#conn').textContent=txt}
+function update(d){
+  if(d.alarm&&!prev.alarm)log('🚨 ALARM triggered'+(d.door?' (door opened)':'')+(d.motion?' (motion)':''));
+  if(d.armed!==prev.armed&&prev.armed!==undefined)log(d.armed?'System ARMED':'System DISARMED');
+  if(d.door&&!prev.door)log('Door opened');if(d.motion&&!prev.motion)log('Motion detected');
+  prev={...d};S=d;hist.push(d.temp);hist=hist.slice(-40);if(['dash','sensors'].includes(page()))render()}
+function send(c){
+  if(cfg.demo){if(c=='ARM')S.armed=true;if(c=='DISARM'){S.armed=false;S.alarm=false}if(c=='SIREN_OFF')S.alarm=false;if(c=='TEST')S.alarm=true;update({...S});return}
+  if(client&&client.connected)client.publish(cfg.id+'/cmd',c);else alert('Not connected to broker')}
+function connect(){
+  if(client)client.end(true);
+  if(cfg.demo){setConn(true,'demo mode');startDemo();return}
+  setConn(false,'connecting…');
+  client=mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
+  client.on('connect',()=>{setConn(true,'live: '+cfg.id);client.subscribe(cfg.id+'/status')});
+  client.on('close',()=>setConn(false,'offline'));
+  client.on('message',(t,m)=>{try{update(JSON.parse(m.toString()))}catch(e){}})}
+let demoT;function startDemo(){clearInterval(demoT);demoT=setInterval(()=>{if(!cfg.demo)return;const d={...S,temp:+(26+Math.random()*3).toFixed(1),hum:Math.round(50+Math.random()*10),
+  motion:Math.random()<.12,door:Math.random()<.05};if(d.armed&&(d.motion||d.door))d.alarm=true;update(d)},1500)}
+const page=()=>(location.hash||'#dash').slice(1);
+const chip=(l,v,bad)=>`<div class="card"><small>${l}</small><div class="big ${bad?'bad':'ok'}">${v}</div></div>`;
+const pages={
+dash:()=>`<div class="banner ${S.alarm?'alarm':''}">${S.alarm?'🚨 INTRUDER ALERT – ALARM ACTIVE':S.armed?'🔒 System armed – monitoring':'🔓 System disarmed'}</div>
+<div class="grid">${chip('Motion',S.motion?'Detected':'Clear',S.motion)}${chip('Door',S.door?'OPEN':'Closed',S.door)}
+${chip('Temperature',S.temp+' °C',S.temp>45)}${chip('Humidity',S.hum+' %',false)}</div><h3>Controls</h3>
+<button onclick="send('ARM')">Arm</button><button class="gray" onclick="send('DISARM')">Disarm</button>
+<button class="red" onclick="send('SIREN_OFF')">Silence siren</button><button class="gray" onclick="send('TEST')">Test alarm</button>
+<h3>Recent events</h3><div class="card">${logs.slice(0,5).map(l=>`<div>${l.t} – ${l.m}</div>`).join('')||'No events yet'}</div>`,
+sensors:()=>`<h2>Live Sensors</h2><div class="card"><small>Temperature history (°C)</small><canvas id="cv" width="800" height="160"></canvas></div><br>
+<table><tr><th>Sensor</th><th>Pin</th><th>Value</th></tr><tr><td>PIR motion</td><td>GPIO27</td><td>${S.motion}</td></tr>
+<tr><td>Door switch</td><td>GPIO26</td><td>${S.door?'open':'closed'}</td></tr><tr><td>DHT22</td><td>GPIO15</td><td>${S.temp}°C / ${S.hum}%</td></tr>
+<tr><td>Buzzer / LED</td><td>GPIO25 / 2</td><td>${S.alarm?'ON':'off'}</td></tr></table>`,
+logs:()=>`<h2>Event Log</h2><button class="gray" onclick="logs=[];localStorage.hs_logs='[]';render()">Clear</button>
+<table><tr><th>Time</th><th>Event</th></tr>${logs.map(l=>`<tr><td>${l.t}</td><td>${l.m}</td></tr>`).join('')}</table>`,
+settings:()=>`<h2>Settings</h2><div class="card"><label>Device ID (must match DEVICE_ID in ESP32 code)</label>
+<input id="sid" value="${cfg.id}"><label><input type="checkbox" id="sdemo" ${cfg.demo?'checked':''} style="width:auto"> Demo mode (fake data, no hardware)</label><br><br>
+<button onclick="cfg.id=$('#sid').value.trim();cfg.demo=$('#sdemo').checked;localStorage.hs_cfg=JSON.stringify(cfg);connect();render()">Save & reconnect</button></div>`,
+about:()=>`<h2>About</h2><div class="card"><p><b>Problem:</b> Break-ins often go unnoticed when nobody is home; commercial systems are costly.</p>
+<p><b>Solution:</b> A low-cost ESP32 node with PIR, door switch and DHT22 publishes data over MQTT; this web app shows live status, raises alerts and lets the owner arm/disarm remotely.</p>
+<p><b>Flow:</b> Sensors → ESP32 → MQTT broker (HiveMQ) → Web dashboard ⇄ commands back to ESP32.</p></div>`};
+function render(){const p=page();document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.hash=='#'+p));
+  $('#view').innerHTML=(pages[p]||pages.dash)();if(p=='sensors')draw()}
+function draw(){const c=$('#cv');if(!c||!hist.length)return;const g=c.getContext('2d');g.strokeStyle='#38bdf8';g.lineWidth=2;g.beginPath();
+  const mx=Math.max(...hist,40),mn=Math.min(...hist,10);hist.forEach((v,i)=>{const x=i*(800/39),y=150-((v-mn)/(mx-mn||1))*140;i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke()}
+addEventListener('hashchange',render);render();connect();
+</script></body></html>

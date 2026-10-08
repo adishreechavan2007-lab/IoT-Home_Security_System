@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "author": "homesec",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-pir-motion-sensor", "id": "pir", "top": -120, "left": 150, "attrs": {} },
+    { "type": "wokwi-dht22", "id": "dht", "top": -130, "left": -120, "attrs": {} },
+    { "type": "wokwi-pushbutton", "id": "door", "top": 20, "left": 170, "attrs": { "color": "blue" } },
+    { "type": "wokwi-buzzer", "id": "bz", "top": 130, "left": 170, "attrs": { "volume": "0.1" } },
+    { "type": "wokwi-led", "id": "led", "top": 150, "left": -100, "attrs": { "color": "red" } },
+    { "type": "wokwi-resistor", "id": "r1", "top": 210, "left": -110, "attrs": { "value": "220" } }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "pir:VCC", "esp:3V3", "red", [] ],
+    [ "pir:GND", "esp:GND.1", "black", [] ],
+    [ "pir:OUT", "esp:27", "green", [] ],
+    [ "dht:VCC", "esp:3V3", "red", [] ],
+    [ "dht:GND", "esp:GND.1", "black", [] ],
+    [ "dht:SDA", "esp:15", "green", [] ],
+    [ "door:1.l", "esp:26", "blue", [] ],
+    [ "door:2.l", "esp:GND.1", "black", [] ],
+    [ "bz:1", "esp:GND.1", "black", [] ],
+    [ "bz:2", "esp:25", "orange", [] ],
+    [ "r1:1", "esp:2", "red", [] ],
+    [ "r1:2", "led:A", "red", [] ],
+    [ "led:C", "esp:GND.1", "black", [] ]
+  ],
+  "dependencies": {}
+}
