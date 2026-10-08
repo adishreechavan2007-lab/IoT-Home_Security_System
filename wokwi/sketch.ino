@@ -20,7 +20,7 @@ WiFiClient net;
 PubSubClient mqtt(net);
 DHT dht(DHT_PIN, DHT22);
 
-bool armed = false, alarmOn = false;
+bool armed = false, alarmOn = false, lastTrig = false;
 unsigned long lastPub = 0;
 
 void onMsg(char* topic, byte* p, unsigned int len) {
@@ -62,7 +62,9 @@ void loop() {
   bool doorOpen = !digitalRead(DOOR_PIN);
 
   // Trigger alarm only when system is armed
-  if (armed && (motion || doorOpen)) alarmOn = true;
+  bool trig = motion || doorOpen;
+  if (armed && trig && !lastTrig) alarmOn = true;  // only on new event
+  lastTrig = trig;
 
   digitalWrite(LED_PIN, alarmOn);
   if (alarmOn) tone(BUZZ_PIN, 1000); else noTone(BUZZ_PIN);
