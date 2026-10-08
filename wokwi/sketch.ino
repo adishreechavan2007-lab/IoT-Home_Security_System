@@ -20,16 +20,16 @@ WiFiClient net;
 PubSubClient mqtt(net);
 DHT dht(DHT_PIN, DHT22);
 
-bool armed = false, alarm = false;
+bool armed = false, alarmOn = false;
 unsigned long lastPub = 0;
 
 void onMsg(char* topic, byte* p, unsigned int len) {
   String m;
   for (unsigned i = 0; i < len; i++) m += (char)p[i];
   if (m == "ARM") armed = true;
-  if (m == "DISARM") { armed = false; alarm = false; }
-  if (m == "SIREN_OFF") alarm = false;
-  if (m == "TEST") alarm = true;
+  if (m == "DISARM") { armed = false; alarmOn = false; }
+  if (m == "SIREN_OFF") alarmOn = false;
+  if (m == "TEST") alarmOn = true;
 }
 
 void connectAll() {
@@ -62,15 +62,15 @@ void loop() {
   bool doorOpen = !digitalRead(DOOR_PIN);
 
   // Trigger alarm only when system is armed
-  if (armed && (motion || doorOpen)) alarm = true;
+  if (armed && (motion || doorOpen)) alarmOn = true;
 
-  digitalWrite(LED_PIN, alarm);
-  if (alarm) tone(BUZZ_PIN, 1000); else noTone(BUZZ_PIN);
+  digitalWrite(LED_PIN, alarmOn);
+  if (alarmOn) tone(BUZZ_PIN, 1000); else noTone(BUZZ_PIN);
 
   if (millis() - lastPub > 1000) {
     lastPub = millis();
     float t = dht.readTemperature(), h = dht.readHumidity();
-    String j = "{\"armed\":" + String(armed) + ",\"alarm\":" + String(alarm) +
+    String j = "{\"armed\":" + String(armed) + ",\"alarm\":" + String(alarmOn) +
                ",\"motion\":" + String(motion) + ",\"door\":" + String(doorOpen) +
                ",\"temp\":" + String(isnan(t) ? 0 : t, 1) +
                ",\"hum\":" + String(isnan(h) ? 0 : h, 0) + "}";
